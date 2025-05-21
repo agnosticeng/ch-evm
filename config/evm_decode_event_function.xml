@@ -1,0 +1,29 @@
+<functions>
+    <function>
+        <name>evm_decode_event</name>
+        <type>executable_pool</type>
+        <format>ArrowStream</format>
+        <stderr_reaction>log</stderr_reaction>
+        <command>ch-evm function evm-decode-event</command>
+
+        <pool_size>16</pool_size>
+        <max_command_execution_time>60</max_command_execution_time>
+        <command_read_timeout>10000</command_read_timeout>
+        <command_write_timeout>10000</command_write_timeout>
+
+        <argument>
+            <name>topics</name>
+            <type>Array(String)</type>
+        </argument>
+        <argument>
+            <name>data</name>
+            <type>String</type>
+        </argument>
+        <argument>
+            <name>abis</name>
+            <type>Array(String)</type>
+        </argument>
+
+        <return_type>String</return_type>
+    </function>
+</functions>
