@@ -1,4 +1,4 @@
-create dictionary evm_abi_decoding (
+create dictionary if not exists evm_abi_decoding (
     selector String,
     fullsigs Array(String)
 )

@@ -20,6 +20,8 @@ pub struct CLI {
 impl CLI {
     pub fn run(&self) -> Result<()> {
         Builder::new_multi_thread()
+            .enable_time()
+            .enable_io()
             .build()?
             .block_on(async {
                 match &self.cmd {
