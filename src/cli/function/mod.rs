@@ -19,10 +19,11 @@ pub struct Function {
 }
 
 impl Function {
-    pub fn run(&self) -> Result<()> {
+    pub async fn run(&self) -> Result<()> {
         match &self.cmd {
-            FunctionCommand::EVMDecodeEvent(cmd) => cmd.run(),
-            FunctionCommand::EthereumRPC(cmd) => cmd.run()
+            FunctionCommand::EVMDecodeEvent(cmd) => cmd.run().await,
+            FunctionCommand::EthereumRPC(cmd) => cmd.run().await
         }
     }
 }
+

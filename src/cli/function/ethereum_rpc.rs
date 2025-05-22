@@ -4,7 +4,6 @@ use std::fmt::Debug;
 use anyhow::Result;
 use clap::Args;
 use serde::{Deserialize,Serialize};
-use tokio::runtime::Builder;
 
 #[derive(Serialize, Deserialize)]
 struct InputRow {
@@ -28,12 +27,7 @@ pub struct EthereumRPCCommand {
 }
 
 impl EthereumRPCCommand {
-    pub fn run(&self) -> Result<()> {
-        let runtime = Builder::new_multi_thread().build()?;
-        runtime.block_on(self.run_async())
-    }
-
-    pub async fn run_async(&self) -> Result<()> {
+    pub async fn run(&self) -> Result<()> {
         Ok(())
     }
 }

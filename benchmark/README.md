@@ -20,7 +20,7 @@ export BUNDLE_PATH="./tmp/bundle" # change it to any other bundle (eg: clickhous
 
 time clickhouse local \
     --path="$BUNDLE_PATH/var/lib/clickhouse" \
-    --queries-file="./benchmark/queries/query.sql" \
+    --queries-file="./benchmark/queries/benchmark.sql" \
     --format=Markdown \
     -- \
     --user_defined_executable_functions_config="$BUNDLE_PATH/etc/clickhouse-server/*_function.*ml" \

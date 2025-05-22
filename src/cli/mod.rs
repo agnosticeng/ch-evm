@@ -3,8 +3,8 @@ mod utils;
 
 use clap::{Subcommand,Parser};
 use anyhow::Result;
+use tokio::runtime::Builder;
 use crate::cli::function::Function;
-
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
@@ -19,8 +19,12 @@ pub struct CLI {
 
 impl CLI {
     pub fn run(&self) -> Result<()> {
-        match &self.cmd {
-            Command::Function(cmd) => cmd.run(),
-        }
+        Builder::new_multi_thread()
+            .build()?
+            .block_on(async {
+                match &self.cmd {
+                    Command::Function(cmd) => cmd.run().await,
+                }
+            })
     }
 }
