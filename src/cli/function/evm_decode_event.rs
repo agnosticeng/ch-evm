@@ -43,7 +43,7 @@ pub struct EVMDecodeEventCommand {
 
 impl EVMDecodeEventCommand {
     pub fn run(&self) -> Result<()> {
-        let fields = Vec::<FieldRef>::from_type::<OutputRow>(TracingOptions::default())?;
+        let fields: Vec<std::sync::Arc<arrow::datatypes::Field>> = Vec::<FieldRef>::from_type::<OutputRow>(TracingOptions::default())?;
         let schema = Schema::new(fields.clone());
         let mut cache = Cache::new(self.abi_provider_cache_size);
         let mut input_file = open_file_or_stdin(&self.input_file)?;
