@@ -9,7 +9,7 @@ use ethereum_rpc::EthereumRPCCommand;
 #[derive(Debug, Clone, Subcommand)]
 pub enum FunctionCommand {
     EVMDecodeEvent(EVMDecodeEventCommand),
-    EthereumRPC(EthereumRPCCommand)
+    EthereumRPC(EthereumRPCCommand),
 }
 
 #[derive(Clone, Debug, Args)]
@@ -22,7 +22,7 @@ impl Function {
     pub async fn run(&self) -> Result<()> {
         match &self.cmd {
             FunctionCommand::EVMDecodeEvent(cmd) => cmd.run().await,
-            FunctionCommand::EthereumRPC(cmd) => cmd.run().await
+            FunctionCommand::EthereumRPC(cmd) => cmd.run().await,
         }
     }
 }

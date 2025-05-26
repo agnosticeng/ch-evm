@@ -1,33 +1,22 @@
 use std::str;
 use std::rc::Rc;
+use std::sync::Arc;
 use std::clone::Clone;
 use std::fmt::Debug;
-use anyhow::{Result,bail};
+use anyhow::{bail, Result};
 use alloy_json_abi::AbiItem;
 use clap::Args;
-use alloy_primitives::B256;
-use serde::{Deserialize,Serialize};
-use arrow::datatypes::{FieldRef,Schema};
+use alloy_primitives::FixedBytes;
+use arrow::array::{BinaryArray, FixedSizeBinaryArray, ListArray, RecordBatch, StringBuilder};
+use arrow::datatypes::{DataType, Field, Schema};
 use arrow_ipc::reader::StreamReader;
 use arrow_ipc::writer::StreamWriter;
-use serde_arrow::schema::{SchemaLike,TracingOptions};
 use serde_json::json;
 use mini_moka::unsync::Cache;
 use crate::evm::{EventJSONExt,AbiItemProviderFactory};
 use crate::cache::CacheExt;
 use crate::cli::utils::*;
 
-#[derive(Serialize, Deserialize)]
-struct InputRow {
-    topics: Vec<B256>,
-    data: Vec<u8>,
-    abis: Vec<Vec<u8>>
-}
-
-#[derive(Serialize, Deserialize)]
-struct OutputRow {
-    result: String
-}
 
 #[derive(Debug, Clone, Args)]
 pub struct EVMDecodeEventCommand {
@@ -43,45 +32,73 @@ pub struct EVMDecodeEventCommand {
 
 impl EVMDecodeEventCommand {
     pub async fn run(&self) -> Result<()> {
-        let fields: Vec<std::sync::Arc<arrow::datatypes::Field>> = Vec::<FieldRef>::from_type::<OutputRow>(TracingOptions::default())?;
-        let schema = Schema::new(fields.clone());
         let mut cache = Cache::new(self.abi_provider_cache_size);
         let mut input_file = open_file_or_stdin(&self.input_file)?;
         let mut output_file = create_file_or_stdout(&self.output_file)?;
+        let output_schema = Arc::new(Schema::new(vec![
+            Field::new("result", DataType::Utf8, false),
+        ]));
 
         loop {
-            let reader = StreamReader::try_new(&mut input_file, None)?;
-            let mut writer = StreamWriter::try_new(&mut output_file, &schema)?;
+            let reader = StreamReader::try_new_buffered(&mut input_file, None)?;
+            let mut writer = StreamWriter::try_new_buffered(&mut output_file, &output_schema)?;
 
-            for batch in reader {
-                let batch = batch?;
-                let input_rows: Vec<InputRow> =  serde_arrow::from_record_batch(&batch)?;
-                let mut output_rows: Vec<OutputRow> = Vec::new();
+            for input_batch in reader {
+                let input_batch = input_batch?;
 
-                for input_row in input_rows {
-                    let js = input_row.abis
+                let mut result_col_builder = StringBuilder::with_capacity(
+                    input_batch.num_rows(),
+                    input_batch.num_rows() * 4 * 1024
+                );
+
+                let topics_col: &ListArray = input_batch.get_column("topics")?;
+                let data_col: &BinaryArray = input_batch.get_column("data")?; 
+                let abis_col: &ListArray = input_batch.get_column("abis")?;
+
+                for i in 0..input_batch.num_rows() {
+                    let topics = topics_col.value(i);
+                    let topics: &FixedSizeBinaryArray = topics.as_array()?;
+
+                    let data = data_col.value(i);
+
+                    let abis = abis_col.value(i);
+                    let abis: &BinaryArray  = abis.as_array()?;
+
+                    let js = abis
                         .into_iter()
+                        .flatten()
                         .map(|key| {
-                            let key = String::from_utf8(key)?;
-                            let abi_item_provider = cache.get_or_create(&key, || {
-                                AbiItemProviderFactory::create(&key).map(Rc::new)
+                            let key = str::from_utf8(key)?;
+
+                            let abi_item_provider = cache.get_or_create(&key.to_string(), || {
+                                AbiItemProviderFactory::create(key).map(Rc::new)
                             })?;
-                            let abi_field = abi_item_provider.get_abi_item(input_row.topics[0].as_slice())?;
+                           
+                            let abi_field = abi_item_provider.get_abi_item(topics.value(0))?;
 
                             match abi_field {
-                                AbiItem::Event(evt) => evt.decode_log_parts_to_json_value(input_row.topics.clone(),  &input_row.data),
+                                AbiItem::Event(evt) => { 
+                                    evt.decode_log_parts_to_json_value(
+                                        topics
+                                            .iter()
+                                            .flatten()
+                                            .map(|x| FixedBytes::from_slice(x)), 
+                                        data
+                                    )
+                                },
                                 _ => bail!("abi item is not an event")
                             }
                         })
                         .find(|res| res.is_ok())
                         .unwrap_or(Ok(json!({"error": "cannot decode event"})))?;
 
-                    
-                    output_rows.push(OutputRow{result: js.to_string()});
+                    result_col_builder.append_value(js.to_string());
                 }
 
-                let batch = serde_arrow::to_record_batch(&fields, &output_rows)?;
-                writer.write(&batch)?;
+                let result_col = result_col_builder.finish();
+                let output_batch = RecordBatch::try_new( output_schema.clone(), vec![Arc::new(result_col)])?;
+
+                writer.write(&output_batch)?;
                 writer.flush()?;
             }
         }

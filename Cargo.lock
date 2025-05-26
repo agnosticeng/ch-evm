@@ -1341,6 +1341,7 @@ dependencies = [
  "arrow-ipc",
  "clap",
  "futures",
+ "indexmap 2.9.0",
  "mini-moka",
  "moka",
  "serde",

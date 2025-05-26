@@ -43,8 +43,8 @@ impl EthereumRPCCommand {
         let mut output_file = create_file_or_stdout(&self.output_file)?;
 
         loop {
-            let reader = StreamReader::try_new(&mut input_file, None)?;
-            let mut writer = StreamWriter::try_new(&mut output_file, &schema)?;
+            let reader = StreamReader::try_new_buffered(&mut input_file, None)?;
+            let mut writer = StreamWriter::try_new_buffered(&mut output_file, &schema)?;
 
             for batch in reader {
                 let batch = batch?;

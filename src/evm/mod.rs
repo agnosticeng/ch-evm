@@ -1,3 +1,4 @@
+use alloy::hex::ToHexExt;
 use alloy_dyn_abi::EventExt;
 use alloy_primitives::Bytes;
 use alloy_json_abi::Event;
@@ -52,7 +53,7 @@ fn dyn_sol_value_to_json_value(v: &DynSolValue) -> Result<Value> {
         DynSolValue::FixedBytes(w, _) =>
             Ok(Value::String(w.to_string())),
         DynSolValue::Address(addr) => 
-            Ok(Value::String(addr.to_string())),
+            Ok(Value::String(addr.encode_hex_with_prefix())),
         DynSolValue::Function(func) => 
             Ok(Value::String(func.to_string())),
         DynSolValue::Uint(i, _, ) if i.bit_len() <= 32 => {
