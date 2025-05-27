@@ -3,7 +3,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::clone::Clone;
 use std::fmt::Debug;
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use alloy_json_abi::AbiItem;
 use clap::Args;
 use alloy_primitives::FixedBytes;

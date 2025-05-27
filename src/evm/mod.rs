@@ -1,10 +1,10 @@
 use alloy::hex::ToHexExt;
 use alloy_dyn_abi::EventExt;
-use alloy_primitives::Bytes;
+use alloy_primitives::{map, Bytes};
 use alloy_json_abi::Event;
 use alloy_primitives::B256;
 use alloy_dyn_abi::DynSolValue;
-use serde_json::{Value, Map, Number};
+use serde_json::{json, Map, Number, Value};
 use anyhow::{Context, Ok, Result};
 
 mod abi_item_provider;
@@ -23,20 +23,22 @@ impl EventJSONExt for Event {
         I: IntoIterator<Item = B256>,
     {
         let decoded = self.decode_log_parts(topics, data)?;
-        let mut res = Map::new();
+        let mut inputs = Map::with_capacity(self.inputs.len());
         let mut indexed_iter = decoded.indexed.iter();
         let mut body_iter = decoded.body.iter();
 
-        res.insert("signature".to_string(), Value::String(self.signature()));
-        res.insert("fullsig".to_string(), Value::String(self.full_signature()));
-
         for (i, param) in self.inputs.iter().enumerate() {
             if param.indexed {
-                res.insert(format!("arg{}", i), dyn_sol_value_to_json_value(indexed_iter.next().context("not enough indexed values")?)?);
+                inputs.insert(format!("arg{}", i), dyn_sol_value_to_json_value(indexed_iter.next().context("not enough indexed values")?)?);
             } else {
-                res.insert(format!("arg{}", i), dyn_sol_value_to_json_value(body_iter.next().context("not enough body values")?)?);
+                inputs.insert(format!("arg{}", i), dyn_sol_value_to_json_value(body_iter.next().context("not enough body values")?)?);
             }
         }
+
+        let mut res = Map::with_capacity(3);
+        res.insert("signature".to_string(), Value::String(self.signature()));
+        res.insert("fullsig".to_string(), Value::String(self.full_signature()));
+        res.insert("inputs".to_string(), Value::Object(inputs));
 
         Ok(Value::Object(res))
     }
