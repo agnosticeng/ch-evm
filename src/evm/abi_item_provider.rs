@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use anyhow::Result;
 use alloy_json_abi::AbiItem;
 
@@ -8,8 +9,8 @@ pub trait AbiItemProvider {
 pub struct AbiItemProviderFactory;
 
 impl AbiItemProviderFactory {
-    pub fn create(s: &str) -> Result<Box<dyn AbiItemProvider>> {
-        FullsigAbiItemProvider::new(s).map(|x| Box::new(x) as Box<dyn AbiItemProvider>)
+    pub fn create(s: &str) -> Result<Arc<dyn AbiItemProvider + Sync + Send>> {
+        FullsigAbiItemProvider::new(s).map(|x| Arc::new(x) as Arc<dyn AbiItemProvider + Sync + Send>)
     }
 }
 

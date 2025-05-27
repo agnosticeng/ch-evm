@@ -18,7 +18,8 @@ make bundle RELEASE=true
 ```sh
 export BUNDLE_PATH="./tmp/bundle" # change it to any other bundle (eg: clickhouse-evm)
 
-time clickhouse local \
+clickhouse local \
+    --log-level=debug \
     --path="$BUNDLE_PATH/var/lib/clickhouse" \
     --queries-file="./benchmark/queries/benchmark.sql" \
     --format=Markdown \
