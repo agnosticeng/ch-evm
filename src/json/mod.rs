@@ -2,8 +2,8 @@ use std::io;
 use serde_json::ser::CharEscape;
 use serde_json::ser::Formatter;
 
-// All the code below is take from serde_json.
-// We had to copy it here because this function is not exposed publicly.
+// All the code below is taken from serde_json.
+// We had to copy it here because these functions are not exposed publicly.
 
 // We only use our own error type; no need for From conversions provided by the
 // standard library's try! macro. This reduces lines of LLVM IR by 4%.

@@ -8,5 +8,5 @@ select evm_decode_event(
 	[
 		'event OrderFulfilled(bytes32,address indexed,address indexed,address,(uint8,address,uint256,uint256)[],(uint8,address,uint256,uint256,address)[])'
 	]
-)
+)::JSON
 settings output_format_arrow_string_as_string=0

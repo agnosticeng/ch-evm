@@ -5,6 +5,6 @@ select evm_decode_event(
 		evm_hex_decode('0x000000000000000000000000936c700adf05d1118d6550a3355f66e93c9476c6')
 	]::Array(FixedString(32)),
 	evm_hex_decode('0x0000000000000000000000000000000000000000000000000000000252e9f940'),
-	['event Transfer(address indexed,address indexed,uint256)']
+	['https://pub-c95b23ccaa6b4a92a8a1411feca96564.r2.dev/erc20.json']
 )::JSON
 settings output_format_arrow_string_as_string=0

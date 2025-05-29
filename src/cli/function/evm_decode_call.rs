@@ -4,18 +4,17 @@ use std::clone::Clone;
 use std::fmt::{Debug};
 use futures::stream::{iter,StreamExt};
 use anyhow::Result;
-use arrow::array::{BinaryArray, FixedSizeBinaryArray, GenericByteBuilder, ListArray, RecordBatch};
+use arrow::array::{BinaryArray, GenericByteBuilder, ListArray, RecordBatch};
 use arrow::datatypes::{DataType, Field, Schema, BinaryType};
 use arrow_ipc::reader::StreamReader;
 use arrow_ipc::writer::StreamWriter;
-use alloy::primitives::FixedBytes;
 use clap::Args;
 use quick_cache::sync::Cache;
 use crate::evm::abi::json_encoding::*;
 use crate::cli::utils::*;
 
 #[derive(Debug, Clone, Args)]
-pub struct EVMDecodeEventCommand {
+pub struct EVMDecodeCallCommand {
     #[arg(short, long, default_value = "")]
     input_file: String,
 
@@ -26,7 +25,7 @@ pub struct EVMDecodeEventCommand {
     abi_provider_cache_size: usize
 }
 
-impl EVMDecodeEventCommand {
+impl EVMDecodeCallCommand {
     pub async fn run(&self) -> Result<()> {
         let cache = Arc::new(Cache::new(self.abi_provider_cache_size));
         let mut input_file = open_file_or_stdin(&self.input_file)?;
@@ -47,16 +46,13 @@ impl EVMDecodeEventCommand {
                     input_batch.num_rows() * 1024
                 );
 
-                let topics_col: &ListArray = input_batch.get_column("topics")?;
-                let data_col: &BinaryArray = input_batch.get_column("data")?; 
+                let input_col: &BinaryArray = input_batch.get_column("input")?; 
+                let output_col: &BinaryArray = input_batch.get_column("output")?; 
                 let abis_col: &ListArray = input_batch.get_column("abis")?;
 
                 for i in 0..input_batch.num_rows() {
-                    let topics = topics_col.value(i);
-                    let topics: &FixedSizeBinaryArray = topics.as_array()?;
-
-                    let data = data_col.value(i);
-
+                    let input = input_col.value(i);
+                    let output = output_col.value(i);
                     let abis = abis_col.value(i);
                     let abis: &BinaryArray  = abis.as_array()?;
 
@@ -66,24 +62,24 @@ impl EVMDecodeEventCommand {
 
                             async move {
                                 let p = get_cached_abi_item_provider(cache, key.unwrap()).await?;
-                                let evt = p.get_event(topics.value(0))?;
-                                let topics = topics
-                                    .iter()
-                                    .flatten()
-                                    .map(|x| FixedBytes::from_slice(x));
-                                let decoded_evt = evt.decode_log_parts(topics, data)?;
-                                encode_event(evt, &decoded_evt)
+                                let func = p.get_function(&input[0..4])?;
+
+                                encode_call(
+                                    func,
+                                    func.abi_decode_input(&input[4..])?.iter(), 
+                                    Some(func.abi_decode_output(output)?.iter())
+                                )
                             }
                         })
                         .filter_map(|f| Box::pin(async { f.into_future().await.ok() }))
                         .next()
                         .await;
 
-                        match res {
-                            Some(js) => result_col_builder.append_value(js),
-                            None => result_col_builder.append_value(b"{\"error\": \"cannot decode event\"}"),
-                        }
+                    match res {
+                        Some(js) => result_col_builder.append_value(js),
+                        None => result_col_builder.append_value(b"{\"error\": \"cannot decode call\"}"),
                     }
+                }
 
                 let result_col = result_col_builder.finish();
                 let output_batch = RecordBatch::try_new(output_schema.clone(), vec![Arc::new(result_col)])?;

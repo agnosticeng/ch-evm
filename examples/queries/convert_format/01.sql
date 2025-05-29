@@ -1,0 +1,2 @@
+select convert_format('json', 'yaml', '{"inputs":[{"internalType":"address","name":"arg0","type":"address"},{"internalType":"uint256","name":"arg1","type":"uint256"}],"name":"transfer","outputs":[{"internalType":"bool","name":"arg0","type":"bool"}],"type":"function"}')
+settings output_format_arrow_string_as_string=0

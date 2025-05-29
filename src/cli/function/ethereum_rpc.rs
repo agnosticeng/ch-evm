@@ -1,30 +1,16 @@
-use std::str;
+use core::str;
 use std::clone::Clone;
 use std::fmt::Debug;
-use alloy::transports::http::reqwest::Url;
+use std::sync::Arc;
 use clap::Args;
-use anyhow::{Context,Result};
-use alloy_rpc_client::{ClientBuilder,Waiter};
-use serde::{Deserialize,Serialize};
-use arrow::datatypes::{FieldRef,Schema};
+use anyhow::{bail, anyhow, Context, Result,Ok};
+use serde_json::Value;
+use arrow::datatypes::{Schema,DataType,Field,BinaryType};
+use arrow::array::{Array, BinaryArray, GenericByteBuilder, ListArray, RecordBatch};
 use arrow_ipc::reader::StreamReader;
 use arrow_ipc::writer::StreamWriter;
-use serde_arrow::schema::{SchemaLike,TracingOptions};
-use serde_json::{Value,json};
-use futures::future::join_all;
+use crate::evm::rpc::{RpcCall,RpcClient};
 use crate::cli::utils::*;
-
-#[derive(Serialize, Deserialize)]
-struct InputRow {
-    method: String,
-    params: Vec<String>,
-    endpoint: String
-}
-
-#[derive(Serialize, Deserialize)]
-struct OutputRow {
-    result: String
-}
 
 #[derive(Debug, Clone, Args)]
 pub struct EthereumRPCCommand {
@@ -33,57 +19,72 @@ pub struct EthereumRPCCommand {
 
     #[arg(short, long, default_value = "")]
     output_file: String,
+
+    #[arg(short, long, default_value_t = 100)]
+    max_batch_size: usize
 }
 
 impl EthereumRPCCommand {
     pub async fn run(&self) -> Result<()> {
-        let fields: Vec<std::sync::Arc<arrow::datatypes::Field>> = Vec::<FieldRef>::from_type::<OutputRow>(TracingOptions::default())?;
-        let schema = Schema::new(fields.clone());
         let mut input_file = open_file_or_stdin(&self.input_file)?;
         let mut output_file = create_file_or_stdout(&self.output_file)?;
+        let output_schema = Arc::new(Schema::new(vec![
+            Field::new("result", DataType::Binary, false),
+        ]));
 
         loop {
             let reader = StreamReader::try_new_buffered(&mut input_file, None)?;
-            let mut writer = StreamWriter::try_new_buffered(&mut output_file, &schema)?;
+            let mut writer = StreamWriter::try_new_buffered(&mut output_file, &output_schema)?;
 
-            for batch in reader {
-                let batch = batch?;
-                let input_rows: Vec<InputRow> =  serde_arrow::from_record_batch(&batch)?;
-                let endpoint = Url::parse(&(input_rows[0].endpoint))?;
-                let client = ClientBuilder::default().http(endpoint);
-                let mut rpc_batch = client.new_batch();
+            for input_batch in reader {
+                let input_batch = input_batch?;
 
-                let rpc_futs: Result<Vec<Waiter<Value>>> = input_rows
-                    .iter()
-                    .map(|row| {
-                        let params = row.params.iter()
+                let mut result_col_builder = GenericByteBuilder::<BinaryType>::with_capacity(
+                    input_batch.num_rows(),
+                    input_batch.num_rows() * 1024
+                );
+
+                let method_col: &BinaryArray = input_batch.get_column("method")?;
+                let endpoint_col: &BinaryArray = input_batch.get_column("endpoint")?;
+                let params_col: &ListArray = input_batch.get_column("params")?; 
+
+                if !endpoint_col.iter().all(|x| x.is_some() && x.unwrap() == endpoint_col.value(0)) {
+                    bail!("endpoint must be constant for an input block");
+                }
+
+                let client = RpcClient::new(str::from_utf8(endpoint_col.value(0))?)?;
+                let call_futs: Vec<RpcCall> = (0..method_col.len())
+                    .map(|i| {
+                        let params = params_col
+                            .value(i)
+                            .as_array::<BinaryArray>()?
+                            .iter()
                             .map(|p| {
-                                let p: String = match p {
+                                let p = match str::from_utf8(p.ok_or(anyhow!("param is not valid UTF-8"))?)? {
                                     s if s.starts_with("0x") => format!("\"{}\"", s),
-                                    _ => p.clone()
+                                    s => s.to_string()
                                 };
                                 serde_json::from_str::<Value>(&p).context("failed to get JSON from param")
                             })
                             .collect::<Result<Vec<Value>>>()?;
-                        rpc_batch.add_call::<Vec<Value>,Value>(row.method.clone(), &params).context("failed to add call to batch")
+
+                        Ok(RpcCall{
+                                method: str::from_utf8(method_col.value(i))?.to_string(),
+                                params
+                        })
                     })
-                    .collect();
+                    .collect::<Result<Vec<_>>>()?;
 
-                let rpc_futs = rpc_futs?;
-                rpc_batch.send().await?;
-
-                let output_rows: Vec<OutputRow> = join_all(rpc_futs).await
+                client.calls(call_futs).await?
                     .into_iter()
-                    .map(|resp| {
-                        match resp {
-                            Err(e) => OutputRow{result: json!({"error": e.to_string()}).to_string()},
-                            Ok(v) => OutputRow { result: v.to_string() }
-                        }
-                    })
-                    .collect();
+                    .try_for_each(|res| {
+                        result_col_builder.append_value(serde_json::to_string(&res)?.as_bytes());
+                        Ok(())
+                    })?;
 
-                let batch = serde_arrow::to_record_batch(&fields, &output_rows)?;
-                writer.write(&batch)?;
+                let result_col = result_col_builder.finish();
+                let output_batch = RecordBatch::try_new(output_schema.clone(), vec![Arc::new(result_col)])?;
+                writer.write(&output_batch)?;
                 writer.flush()?;
             }
         }

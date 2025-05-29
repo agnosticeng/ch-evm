@@ -3,7 +3,6 @@ use clap::Parser;
 
 pub mod evm;
 pub mod cli;
-pub mod cache;
 pub mod json;
 
 extern crate jemallocator;

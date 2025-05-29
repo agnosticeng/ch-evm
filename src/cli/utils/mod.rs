@@ -1,7 +1,11 @@
+use std::str;
 use std::io::{stdin,stdout,Read,Write};
 use std::fs::File;
-use anyhow::{Result,bail,anyhow};
+use std::sync::Arc;
+use anyhow::{anyhow, bail, Result};
 use arrow::array::{ArrayRef,RecordBatch};
+use quick_cache::sync::Cache;
+use crate::evm::abi::{AbiItemProvider,AbiItemProviderFactory, Function};
 
 pub fn open_file_or_stdin(path: &str) -> Result<Box<dyn Read>> {
     if path.is_empty() {
@@ -47,3 +51,28 @@ impl ArrayRefExt for ArrayRef {
         self.as_any().downcast_ref().ok_or(anyhow!(format!("cannot downcast array")))
     }
 }
+
+pub async fn get_cached_abi_item_provider(
+    cache: Arc<Cache<String, Arc<dyn AbiItemProvider + Send + Sync>>>,
+    key: &[u8]
+) -> Result<Arc<dyn AbiItemProvider + Send + Sync>> {
+    let key = str::from_utf8(key)?;
+
+    cache.get_or_insert_async(
+        key,
+        async { AbiItemProviderFactory::create(key).await }
+    ).await
+}
+
+pub fn get_cached_func_sync(
+    cache: Arc<Cache<String, Function>>,
+    key: &[u8]
+) -> Result<Function> {
+    let key = str::from_utf8(key)?;
+
+    cache.get_or_insert_with(
+        key,
+        || { Function::parse(key) }
+    )
+}
+
