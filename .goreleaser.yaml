@@ -8,10 +8,10 @@ before:
 
 builds:
   - builder: rust
-    binary: /var/lib/clickhouse/user_scripts/ch-evm
+    binary: ch-evm
     targets:
       - x86_64-unknown-linux-gnu
-      - aarch64-apple-darwin
+      # - aarch64-apple-darwin
 
 archives:
   - format: tar.gz
@@ -24,7 +24,7 @@ archives:
         strip_parent: true
 
       - src: "sql/function_*.sql"
-        dst: var/lib/clickhouse/user_defined/
+        dst: /var/lib/clickhouse/user_defined/
         strip_parent: true
 
 changelog:
