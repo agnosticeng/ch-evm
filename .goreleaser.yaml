@@ -1,0 +1,35 @@
+version: 2
+
+before:
+  hooks:
+    - rustup default stable
+    - cargo install --locked cargo-zigbuild
+    - cargo fetch --locked
+
+builds:
+  - builder: rust
+    binary: /var/lib/clickhouse/user_scripts/ch-evm
+    targets:
+      - x86_64-unknown-linux-gnu
+      - aarch64-apple-darwin
+
+archives:
+  - format: tar.gz
+
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{.Os}}_{{.Arch}}{{ with .Amd64 }}_{{ . }}{{ end }}"
+
+    files:
+      - src: "config/*.*ml"
+        dst: /etc/clickhouse-server/
+        strip_parent: true
+
+      - src: "sql/function_*.sql"
+        dst: var/lib/clickhouse/user_defined/
+        strip_parent: true
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
