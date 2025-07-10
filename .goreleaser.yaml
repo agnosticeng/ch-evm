@@ -8,7 +8,8 @@ before:
 
 builds:
   - builder: rust
-    binary: ch-evm
+    path: ch-evm
+    binary: /var/lib/clickhouse/user_scripts/ch-evm
     targets:
       - x86_64-unknown-linux-gnu
       # - aarch64-apple-darwin

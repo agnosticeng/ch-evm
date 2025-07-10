@@ -34,7 +34,3 @@ quick_cache = "0.6.14"
 serde_yaml = "0.9.34"
 serde-transcode = "1.1.1"
 toml = "0.8.23"
-openssl = { version = '*', features = ["vendored"] }
-
-[build-dependencies]
-openssl = { version = '*', features = ["vendored"] }
