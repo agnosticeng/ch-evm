@@ -1,0 +1,81 @@
+on:
+  release:
+    types: 
+      - published
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: echo "VERSION=$(echo $GITHUB_REF | sed 's/refs\/tags\/v//')" >> $GITHUB_ENV
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - run: rustup target add amd64-unknown-linux-gnu
+      - run: rustup target add aarch64-unknown-linux-gnu
+      - run: rustup target add aarch64-apple-darwin
+
+      - uses: houseabsolute/actions-rust-cross@v1
+        with:
+          command: build
+          target: amd64-unknown-linux-gnu
+          args: "--release"
+          strip: true
+
+      - uses: houseabsolute/actions-rust-cross@v1
+        with:
+          command: build
+          target: aarch64-unknown-linux-gnu
+          args: "--release"
+          strip: true
+
+      - uses: houseabsolute/actions-rust-cross@v1
+        with:
+          command: build
+          target: aarch64-apple-darwin
+          args: "--release"
+          strip: true
+
+      - run: >
+          make
+          bundle 
+          BUNDLE_DIR=dist/ch-evm_$VERSION_x86_64-unknown-linux-gnu/
+          BUNDLE_ARCHIVE=dist/ch-evm_$VERSION_x86_64-unknown-linux-gnu.tar.gz 
+          BINARY_PATH=target/x86_64-unknown-linux-gnu/release/ch-evm
+
+      - run: >
+          make
+          bundle 
+          BUNDLE_DIR=dist/ch-evm_$VERSION_aarch64-unknown-linux-gnu/
+          BUNDLE_ARCHIVE=dist/ch-evm_$VERSION_aarch64-unknown-linux-gnu.tar.gz 
+          BINARY_PATH=target/aarch64-unknown-linux-gnu/release/ch-evm
+
+      - run: >
+          make
+          bundle 
+          BUNDLE_DIR=dist/ch-evm_$VERSION_aarch64-apple-darwin/
+          BUNDLE_ARCHIVE=dist/ch-evm_$VERSION_aarch64-apple-darwin.tar.gz 
+          BINARY_PATH=target/aarch64-apple-darwin/release/ch-evm
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ch-evm_$VERSION_x86_64-unknown-linux-gnu.tar.gz 
+          path: dist/ch-evm_$VERSION_x86_64-unknown-linux-gnu.tar.gz 
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ch-evm_$VERSION_aarch64-unknown-linux-gnu.tar.gz 
+          path: dist/ch-evm_$VERSION_aarch64-unknown-linux-gnu.tar.gz 
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ch-evm_$VERSION_aarch64-apple-darwin.tar.gz
+          path: dist/ch-evm_$VERSION_aarch64-apple-darwin.tar.gz
+          
+                  
