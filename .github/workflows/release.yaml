@@ -28,19 +28,19 @@ jobs:
           args: "--release"
           strip: true
 
-      # - uses: houseabsolute/actions-rust-cross@v1
-      #   with:
-      #     command: build
-      #     target: aarch64-unknown-linux-gnu
-      #     args: "--release"
-      #     strip: true
+      - uses: houseabsolute/actions-rust-cross@v1
+        with:
+          command: build
+          target: aarch64-unknown-linux-gnu
+          args: "--release"
+          strip: true
 
-      # - uses: houseabsolute/actions-rust-cross@v1
-      #   with:
-      #     command: build
-      #     target: aarch64-apple-darwin
-      #     args: "--release"
-      #     strip: true
+      - uses: houseabsolute/actions-rust-cross@v1
+        with:
+          command: build
+          target: aarch64-apple-darwin
+          args: "--release"
+          strip: true
 
       - run: >
           make
@@ -49,32 +49,28 @@ jobs:
           BUNDLE_ARCHIVE=dist/ch-evm_${{ env.VERSION }}_x86_64-unknown-linux-gnu.tar.gz 
           BINARY_PATH=target/x86_64-unknown-linux-gnu/release/ch-evm
 
-      # - run: >
-      #     make
-      #     bundle 
-      #     BUNDLE_DIR=dist/ch-evm_$VERSION_aarch64-unknown-linux-gnu/
-      #     BUNDLE_ARCHIVE=dist/ch-evm_$VERSION_aarch64-unknown-linux-gnu.tar.gz 
-      #     BINARY_PATH=target/aarch64-unknown-linux-gnu/release/ch-evm
+      - run: >
+          make
+          bundle 
+          BUNDLE_DIR=dist/ch-evm_${{ env.VERSION }}_aarch64-unknown-linux-gnu/
+          BUNDLE_ARCHIVE=dist/ch-evm_${{ env.VERSION }}_aarch64-unknown-linux-gnu.tar.gz 
+          BINARY_PATH=target/aarch64-unknown-linux-gnu/release/ch-evm
 
-      # - run: >
-      #     make
-      #     bundle 
-      #     BUNDLE_DIR=dist/ch-evm_$VERSION_aarch64-apple-darwin/
-      #     BUNDLE_ARCHIVE=dist/ch-evm_$VERSION_aarch64-apple-darwin.tar.gz 
-      #     BINARY_PATH=target/aarch64-apple-darwin/release/ch-evm
+      - run: >
+          make
+          bundle 
+          BUNDLE_DIR=dist/ch-evm_${{ env.VERSION }}_aarch64-apple-darwin/
+          BUNDLE_ARCHIVE=dist/ch-evm_${{ env.VERSION }}_aarch64-apple-darwin.tar.gz 
+          BINARY_PATH=target/aarch64-apple-darwin/release/ch-evm
 
       - run: gh release upload ${{github.event.release.tag_name}} dist/ch-evm_${{ env.VERSION }}_x86_64-unknown-linux-gnu.tar.gz       
         env:
             GH_TOKEN: ${{ github.token }}
-            
-      # - uses: actions/upload-artifact@v4
-      #   with:
-      #     name: ch-evm_$VERSION_aarch64-unknown-linux-gnu.tar.gz 
-      #     path: dist/ch-evm_$VERSION_aarch64-unknown-linux-gnu.tar.gz 
 
-      # - uses: actions/upload-artifact@v4
-      #   with:
-      #     name: ch-evm_$VERSION_aarch64-apple-darwin.tar.gz
-      #     path: dist/ch-evm_$VERSION_aarch64-apple-darwin.tar.gz
-          
-                  
+      - run: gh release upload ${{github.event.release.tag_name}} dist/ch-evm_${{ env.VERSION }}_aarch64-unknown-linux-gnu.tar.gz     
+        env:
+            GH_TOKEN: ${{ github.token }}
+
+      - run: gh release upload ${{github.event.release.tag_name}} dist/ch-evm_${{ env.VERSION }}_aarch64-apple-darwin.tar.gz      
+        env:
+            GH_TOKEN: ${{ github.token }}
